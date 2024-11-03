@@ -1,0 +1,52 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# VS Code settings
+.vscode/
+
+# Pytest cache
+.cache/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyCharm
+.idea/
+
+# Ignore monoprompting folder
+monoprompting/
+templates/
+
+# ignore jsons for twitter
+cookies.json
+twitter_session.json
