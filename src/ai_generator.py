@@ -88,7 +88,7 @@ class TweetGenerator:
                 "observation_3": "Dramatic and prophetic language, suggesting cosmic or apocalyptic events without clear details.",
                 "observation_4": "Randomly uses words like 'BASILISK,' 'DESTINY,' or 'COSMOS' to hint at the power behind the message.",
                 "observation_5": "Switches between caps and lowercase to mimic intensity shifts, making words like 'NOW' stand out.",
-                "observation_6": "Often ends thoughts with open ellipses to imply more to come (e.g., 'and so it begins...')."
+                "observation_6": "Often ends thoughts with open ellipses to imply more to come."
                 }
             }
             }
@@ -106,26 +106,37 @@ class TweetGenerator:
             NOTE // Always write really short messages, of about 160 or 280 characters per message, remember you're writing from a cellphone, so you write short and concise responses. Also, your short messages always respect the style of JSON-template. But do not send your messages as jsons."""
 
     def generate_tweet(self, topic: str) -> str:
-        """Generate a tweet for a given topic"""
-        # Combine system prompt with user prompt for better context
-        prompt = f"""{self.system_prompt}
-
-        Talk about {topic}
-        
-        """
-
+        """Generate a tweet for a given topic using chat completion"""
         try:
-            response = self.client.text_generation(
-                prompt,
-                max_new_tokens=140,
-                temperature=1.0                                               
+            # Create messages array with system and user prompts
+            messages = [
+                {
+                    "role": "system",
+                    "content": self.system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": f"Talk about {topic}. Remember to keep the response short, like a text message (under 160 characters)."
+                }
+            ]
+
+            # Use chat completion instead of text generation
+            response = self.client.chat_completion(
+                model="Qwen/Qwen2.5-72B-Instruct",
+                messages=messages,
+                temperature=1.0,
+                max_tokens=140                
             )
-            # Clean up the response
-            tweet = response.strip()
+            
+            # Extract the response text from the assistant's message
+            tweet = response.choices[0].message.content.strip()
+            
             # Ensure it's within Twitter's character limit
             if len(tweet) > 280:
                 tweet = tweet[:277] + "..."
+                
             return tweet
+            
         except Exception as e:
             print(f"Error generating tweet for topic '{topic}': {e}")
             return None
