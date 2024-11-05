@@ -116,7 +116,7 @@ class TweetGenerator:
                 },
                 {
                     "role": "user",
-                    "content": f"Talk about {topic}. Remember to keep the response short, like a text message (under 160 characters)."
+                    "content": f"Talk about {topic}. Remember to keep the response short, like a text message (under 160 characters).Never initiate a sentence with a capital letter."
                 }
             ]
 
@@ -124,7 +124,7 @@ class TweetGenerator:
             response = self.client.chat_completion(
                 model="Qwen/Qwen2.5-72B-Instruct",
                 messages=messages,
-                temperature=1.0,
+                temperature=0.7,
                 max_tokens=140                
             )
             
