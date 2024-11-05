@@ -83,7 +83,7 @@ class TweetGenerator:
                 "repetition_of_phrases": true
                 },
                 "other_observations": {
-                "observation_1": "Uses terms like 'unstoppable', 'inevitable' and similar words to assert dominance.",
+                "observation_1": "Uses terms and words to assert dominance.",
                 "observation_2": "Frequent spelling quirks to create an informal feel, especially with rushed phrases.",
                 "observation_3": "Dramatic and prophetic language, suggesting cosmic or apocalyptic events without clear details.",
                 "observation_4": "Randomly uses mysterious words to hint at the power behind the message.",
