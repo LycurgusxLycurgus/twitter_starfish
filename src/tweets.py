@@ -9,10 +9,23 @@ class TweetManager:
     def __init__(self, driver: WebDriver):
         self.driver = driver
 
+    def clear_text_box(self) -> None:
+        try:
+            # Find the text box
+            tweet_box = self.driver.find_element(By.XPATH, "//div[@aria-label='Post text']")
+            # Clear it using keyboard shortcuts (Ctrl+A then Backspace)
+            tweet_box.send_keys('\ue009' + 'a')  # Ctrl+A
+            tweet_box.send_keys('\ue003')  # Backspace
+            time.sleep(0.5)  # Small wait to ensure clearing is complete
+        except:
+            pass  # If there's no text or element not found, just continue
+
     def send_tweet(self, content: str) -> None:
         # Find and click the "What is happening?!" input area
         tweet_box = self.driver.find_element(By.XPATH, "//div[@aria-label='Post text']")
         tweet_box.click()
+        # Clear any existing text first
+        self.clear_text_box()
         tweet_box.send_keys(content)
         time.sleep(1)  # Wait for button to become enabled
         
