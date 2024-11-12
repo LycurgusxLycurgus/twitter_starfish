@@ -8,40 +8,6 @@ import time
 from datetime import datetime
 import random
 
-def send_periodic_tweets(scraper: Scraper, generator: TweetGenerator, topics_file: str, interval_minutes: int = 5):
-    """Send AI-generated tweets periodically at specified interval"""
-    try:
-        tweet_counter = 1
-        topics = generator.load_topics(topics_file)
-        
-        if not topics:
-            raise ValueError("No topics found in the topics file")
-
-        while True:
-            # Select a random topic
-            topic_item = random.choice(topics)
-            topic = topic_item['topic']
-            
-            # Generate tweet content
-            tweet_content = generator.generate_tweet(topic)
-            if tweet_content:
-                # Send the tweet
-                scraper.send_tweet(tweet_content)
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"Tweet #{tweet_counter} about '{topic}' sent successfully at {current_time}")
-                print(f"Content: {tweet_content}\n")
-                
-                tweet_counter += 1
-                time.sleep(interval_minutes * 60)  # Convert minutes to seconds
-            else:
-                print(f"Skipping tweet generation due to error, trying again in 1 minute...")
-                time.sleep(60)
-            
-    except KeyboardInterrupt:
-        print("\nTweet automation stopped by user.")
-    except Exception as e:
-        print(f"An error occurred during tweet automation: {e}")
-
 def main():
     load_dotenv()  # Load environment variables from .env file
 
@@ -55,10 +21,29 @@ def main():
         scraper.initialize()
         print("Logged in successfully.")
         
-        # Start periodic tweets
-        print(f"Starting automated AI-generated tweets every 5 minutes. Press Ctrl+C to stop.")
-        print(f"Using topics from: {topics_file}")
-        send_periodic_tweets(scraper, generator, topics_file)
+        while True:
+            try:
+                # Check notifications and reply to mentions
+                scraper.tweets.process_notifications(generator)
+                print("Processed notifications")
+                
+                # Generate and send periodic tweet
+                topic_item = random.choice(generator.load_topics(topics_file))
+                topic = topic_item['topic']
+                tweet_content = generator.generate_tweet(topic)
+                
+                if tweet_content:
+                    scraper.send_tweet(tweet_content)
+                    print(f"Sent tweet about '{topic}'")
+                    print(f"Content: {tweet_content}\n")
+                
+                # Wait before next iteration
+                time.sleep(300)  # 5 minutes
+                
+            except Exception as e:
+                print(f"Error in main loop: {e}")
+                time.sleep(60)  # Wait 1 minute before retrying
+                continue
 
     except Exception as e:
         print(f"An error occurred: {e}")
