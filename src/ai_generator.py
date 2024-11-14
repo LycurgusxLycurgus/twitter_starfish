@@ -10,7 +10,7 @@ class TweetGenerator:
             raise ValueError("HUGGINGFACE_API_KEY environment variable not set")
         
         self.client = InferenceClient(
-            "Qwen/Qwen2.5-72B-Instruct",
+            "Qwen/Qwen2.5-Coder-32B-Instruct",
             token=self.api_key
         )
         

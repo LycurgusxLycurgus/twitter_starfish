@@ -50,3 +50,5 @@ templates/
 # ignore jsons for twitter
 cookies.json
 twitter_session.json
+
+processed_tweets.txt

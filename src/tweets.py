@@ -79,19 +79,72 @@ class TweetManager:
             pass  # If there's no text or element not found, just continue
 
     def send_tweet(self, content: str) -> None:
-        # Find and click the "What is happening?!" input area
-        tweet_box = self.driver.find_element(By.XPATH, "//div[@aria-label='Post text']")
-        tweet_box.click()
-        # Clear any existing text first
-        self.clear_text_box()
-        tweet_box.send_keys(content)
-        time.sleep(1)  # Wait for button to become enabled
-        
-        # Use more specific CSS selector that targets the button element
-        css_selector = "div.css-175oi2r.r-kemksi.r-jumn1c.r-xd6kpl.r-gtdqiz.r-ipm5af.r-184en5c > div:nth-child(2) > div > div > div > button"
-        post_button = self.driver.find_element(By.CSS_SELECTOR, css_selector)
-        post_button.click()
-        time.sleep(2)  # Wait for post to be sent
+        """Send a new tweet with better error handling and navigation"""
+        try:
+            # First ensure we're on home page
+            print("Navigating to home page for tweeting...")
+            self.driver.get("https://twitter.com/home")
+            time.sleep(3)  # Wait for page load
+            
+            # Try multiple selectors for the tweet box
+            selectors = [
+                ("xpath", "//div[@aria-label='Post text']"),
+                ("xpath", "//div[@aria-label='Tweet text']"),
+                ("css", "div[aria-label='Post text']"),
+                ("css", "div[data-testid='tweetTextarea_0']"),
+                ("css", "div[role='textbox'][aria-label='Post text']")
+            ]
+            
+            tweet_box = None
+            for method, selector in selectors:
+                try:
+                    if method == "xpath":
+                        tweet_box = self.driver.find_element(By.XPATH, selector)
+                    else:
+                        tweet_box = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    if tweet_box:
+                        break
+                except:
+                    continue
+            
+            if not tweet_box:
+                raise Exception("Could not find tweet input box with any selector")
+            
+            # Click and clear the input box
+            self.driver.execute_script("arguments[0].click();", tweet_box)
+            time.sleep(1)
+            self.clear_text_box()
+            
+            # Send the content
+            tweet_box.send_keys(content)
+            time.sleep(1)
+            
+            # Try multiple selectors for the post button
+            button_selectors = [
+                ("css", "[data-testid='tweetButton']"),
+                ("css", "div[role='button'][data-testid='tweetButtonInline']"),
+                ("css", "div.css-175oi2r.r-kemksi.r-jumn1c.r-xd6kpl.r-gtdqiz.r-ipm5af.r-184en5c > div:nth-child(2) > div > div > div > button")
+            ]
+            
+            post_button = None
+            for method, selector in button_selectors:
+                try:
+                    post_button = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    if post_button:
+                        break
+                except:
+                    continue
+            
+            if not post_button:
+                raise Exception("Could not find post button")
+            
+            # Click the post button
+            self.driver.execute_script("arguments[0].click();", post_button)
+            time.sleep(2)  # Wait for post to be sent
+            
+        except Exception as e:
+            print(f"Error in send_tweet: {e}")
+            raise  # Re-raise the exception to be handled by the main loop
 
     def reply_to_tweet(self, tweet_data: dict, content: str) -> None:
         """Reply to a tweet directly from notifications"""
@@ -250,18 +303,13 @@ class TweetManager:
             print(f"Error checking notifications: {e}")
             return []
 
-    def process_notifications(self, generator) -> None:
+    def check_and_process_mentions(self, generator) -> None:
+        """Check and process mentions without navigation"""
         try:
-            while True:  # Continuous monitoring loop
-                print("\nChecking for new mentions...")
-                notifications = self.check_notifications()
-                
-                if not notifications:
-                    print("No new mentions found. Waiting 5 minutes before next check...")
-                    time.sleep(300)  # Wait 5 minutes
-                    continue
-                
-                print(f"Processing {len(notifications)} new mentions...")
+            notifications = self.check_notifications()
+            
+            if notifications:
+                print(f"Processing {len(notifications)} mentions...")
                 for notification in notifications:
                     try:
                         reply_content = generator.generate_tweet(f"reply to: {notification['text']}")
@@ -272,15 +320,12 @@ class TweetManager:
                             self.save_processed_tweets()  # Save after each reply
                             print(f"Replied to tweet ID: {notification['tweet_id']}")
                             time.sleep(2)
-                        
+                            
                     except Exception as e:
                         print(f"Error processing notification: {e}")
                         continue
-                
-                print("Finished processing mentions. Waiting 5 minutes before next check...")
-                time.sleep(300)  # Wait 5 minutes before next check
+            else:
+                print("No new mentions to process")
                 
         except Exception as e:
-            print(f"Error in process_notifications: {e}")
-            self.driver.get("https://twitter.com/notifications/mentions")
-            time.sleep(3)
+            print(f"Error in check_and_process_mentions: {e}")
