@@ -63,11 +63,15 @@ def main():
                     # Generate and send tweet
                     topic_item = random.choice(generator.load_topics(topics_file))
                     topic = topic_item['topic']
+                    
+                    # Get the chosen format before generating the tweet
+                    chosen_format = random.choice(generator.length_formats)['format'] if generator.length_formats else "one sentence"
                     tweet_content = generator.generate_tweet(topic)
                     
                     if tweet_content:
                         scraper.send_tweet(tweet_content)
                         print(f"Sent tweet about '{topic}'")
+                        print(f"Using format: '{chosen_format}'")
                         print(f"Content: {tweet_content}")
                         
                         last_tweet_time = current_time

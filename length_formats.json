@@ -1,0 +1,220 @@
+{
+    "formats": [
+        {
+            "format": "one word",
+            "description": "Single word response"
+        },
+        {
+            "format": "one kaomoji",
+            "description": "Single kaomoji response"
+        },
+        {
+            "format": "three words",
+            "description": "Three distinct words"
+        },
+        {
+            "format": "three textual emoticons",
+            "description": "Three text-based emoticons"
+        },
+        {
+            "format": "one phrase",
+            "description": "Single coherent phrase"
+        },
+        {
+            "format": "two phrases",
+            "description": "Two distinct phrases"
+        },
+        {
+            "format": "three phrases",
+            "description": "Three distinct phrases"
+        },
+        {
+            "format": "one short sentence",
+            "description": "Single concise sentence"
+        },
+        {
+            "format": "two phrases, newline, one phrase",
+            "description": "Two phrases followed by one more, separated by newlines"
+        },
+        {
+            "format": "one word, newline, another word",
+            "description": "Two words separated by a newline"
+        },
+        {
+            "format": "three short phrases",
+            "description": "Three brief phrases"
+        },
+        {
+            "format": "two words",
+            "description": "Two distinct words"
+        },
+        {
+            "format": "one phrase, newline, one word",
+            "description": "Phrase followed by a word with a newline"
+        },
+        {
+            "format": "five words",
+            "description": "Five distinct words"
+        },
+        {
+            "format": "one short paragraph",
+            "description": "Brief and concise paragraph"
+        },
+        {
+            "format": "one phrase, one textual emoticon",
+            "description": "Phrase followed by a textual emoticon"
+        },
+        {
+            "format": "two phrases, newline, one kaomoji",
+            "description": "Two phrases followed by a kaomoji, separated by newlines"
+        },
+        {
+            "format": "one line of dialogue",
+            "description": "Single line of dialogue"
+        },
+        {
+            "format": "one phrase, newline, an incomplete phrase",
+            "description": "Complete phrase followed by an incomplete one, separated by a newline"
+        },
+        {
+            "format": "one short question",
+            "description": "Brief and concise question"
+        },
+        {
+            "format": "two short questions",
+            "description": "Two brief questions in a row"
+        },
+        {
+            "format": "one short exclamation",
+            "description": "Single concise exclamatory statement"
+        },
+        {
+            "format": "a short rhetorical question",
+            "description": "One brief rhetorical question"
+        },
+        {
+            "format": "two rhetorical questions, newline, one short exclamation",
+            "description": "Two brief rhetorical questions followed by a concise exclamation, separated by newlines"
+        },
+        {
+            "format": "three clauses in one phrase",
+            "description": "Phrase containing three clauses"
+        },
+        {
+            "format": "one short fragment",
+            "description": "Very brief sentence fragment"
+        },
+        {
+            "format": "a short phrase ending with a question mark",
+            "description": "Brief phrase that ends with a question mark"
+        },
+        {
+            "format": "two short thoughts connected by ellipsis",
+            "description": "Two brief thoughts linked by an ellipsis"
+        },
+        {
+            "format": "one action descriptor",
+            "description": "Action described concisely"
+        },
+        {
+            "format": "one thought bubble-style phrase",
+            "description": "Phrase structured like a thought bubble"
+        },
+        {
+            "format": "a combination of two clauses joined by but what if...",
+            "description": "What-if style phrase with two clauses"
+        },
+        {
+            "format": "one phrase structured as a list",
+            "description": "List-style phrase with short elements"
+        },
+        {
+            "format": "three short, disconnected thoughts",
+            "description": "Three disjointed thoughts presented separately"
+        },
+        {
+            "format": "a short phrase with a play on words",
+            "description": "Phrase with a clever wordplay"
+        },
+        {
+            "format": "one short phrase, interrupted by parentheses",
+            "description": "Brief phrase with a parenthetical interjection"
+        },
+        {
+            "format": "two descriptive phrases, newline, one short reaction",
+            "description": "Two phrases describing something, followed by a brief reaction"
+        },
+        {
+            "format": "one overly long phrase",
+            "description": "Extended phrase without breaks"
+        },
+        {
+            "format": "one very short question",
+            "description": "Brief and concise question"
+        },
+        {
+            "format": "one disconnected phrase",
+            "description": "Fragmented thought that stands alone"
+        },
+        {
+            "format": "two linked fragments",
+            "description": "Two separate but related fragments"
+        },
+        {
+            "format": "one incomplete thought",
+            "description": "Unfinished thought ending abruptly"
+        },
+        {
+            "format": "one short phrase with ellipsis",
+            "description": "Single brief phrase trailing off"
+        },
+        {
+            "format": "one ultra-short response",
+            "description": "Extremely brief reply, under 15 characters"
+        },
+        {
+            "format": "one tiny phrase",
+            "description": "Phrase around 10-20 characters"
+        },
+        {
+            "format": "one minimal reaction",
+            "description": "Very short response, e.g., 'oh' or 'hmm'"
+        },
+        {
+            "format": "one micro-thought",
+            "description": "Quick idea, under 20 characters"
+        },
+        {
+            "format": "two ultra-short words",
+            "description": "Two words, under 20 characters total"
+        },
+        {
+            "format": "one clipped phrase",
+            "description": "Compact, under 20 characters"
+        },
+        {
+            "format": "one short sound",
+            "description": "Single onomatopoeic sound, e.g., 'hm' or 'ah'"
+        },
+        {
+            "format": "one terse reply",
+            "description": "Brief response, under 10 characters"
+        },
+        {
+            "format": "one quick thought",
+            "description": "Fast idea, under 15 characters"
+        },
+        {
+            "format": "one brisk reaction",
+            "description": "Short response like 'wow' or 'eh'"
+        },
+        {
+            "format": "one swift phrase",
+            "description": "Compact phrase, under 15 characters"
+        },
+        {
+            "format": "one tight fragment",
+            "description": "Very brief fragment, under 10 characters"
+        }
+    ]
+}
