@@ -98,7 +98,7 @@ class TweetGenerator:
                 },
                 {
                     "role": "user",
-                    "content": f"Talk about {topic}. Format the response as: {chosen_format['format']}. Remember to respond like a text message using text-speak and replacing 'r' with 'fw' and 'l' with 'w'. And do not use emojis."
+                    "content": f"Talk about {topic}. Format the response as: {chosen_format['format']}. Remember to respond like a text message using text-speak and replacing 'r' with 'fw' and 'l' with 'w'. And do not use emojis nor quotes."
                 }
             ]
 
