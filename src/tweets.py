@@ -146,79 +146,111 @@ class TweetManager:
             print(f"Error in send_tweet: {e}")
             raise  # Re-raise the exception to be handled by the main loop
 
+    def sanitize_text(self, text: str) -> str:
+        """Sanitize text to only include BMP characters"""
+        return ''.join(char for char in text if ord(char) < 0xFFFF)
+
     def reply_to_tweet(self, tweet_data: dict, content: str) -> None:
         """Reply to a tweet directly from notifications"""
+        max_retries = 3
+        success = False
+        
         try:
-            # Instead of navigating to the URL, find the tweet in notifications
-            if not tweet_data.get('element'):
-                print("No tweet element provided")
-                return
-                
-            # Find and click reply button on the notification tweet
-            reply_button = tweet_data['element'].find_element(By.CSS_SELECTOR, "[data-testid='reply']")
-            self.driver.execute_script("arguments[0].scrollIntoView(true);", reply_button)
-            time.sleep(1)
-            self.driver.execute_script("arguments[0].click();", reply_button)
-            time.sleep(3)  # Increased wait time after clicking reply
+            # Sanitize the content before using it
+            sanitized_content = self.sanitize_text(content)
+            print(f"Sanitized content: {sanitized_content}")
             
-            try:
-                # More specific selector for the exact DraftEditor content area
-                editor = self.driver.find_element(
-                    By.CSS_SELECTOR, 
-                    "div.notranslate.public-DraftEditor-content[data-testid='tweetTextarea_0'][contenteditable='true'][aria-label='Post text']"
-                )
-                
-                # Click to focus the editor
-                self.driver.execute_script("arguments[0].click();", editor)
-                time.sleep(1)
-                
-                # Clear any existing text using keyboard shortcuts
-                editor.send_keys('\ue009' + 'a')  # Ctrl+A
-                editor.send_keys('\ue003')  # Backspace
-                time.sleep(0.5)
-                
-                # Send content
-                editor.send_keys(content)
-                time.sleep(1)
-                
-                # Click post button
-                post_button = self.driver.find_element(By.CSS_SELECTOR, "[data-testid='tweetButton']")
-                self.driver.execute_script("arguments[0].click();", post_button)
-                time.sleep(2)
-                
-                print(f"Successfully replied to tweet {tweet_data['tweet_id']}")
-                
-            except Exception as e:
-                print(f"Error entering text: {e}")
-                # Fallback attempt
+            for attempt in range(max_retries):
                 try:
-                    # Alternative selector focusing on the wrapping div
-                    editor_wrapper = self.driver.find_element(
-                        By.CSS_SELECTOR,
-                        "div[aria-label='Post text'][role='textbox'].notranslate"
+                    # Find all articles again to get fresh elements
+                    articles = self.driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+                    target_article = None
+                    
+                    # Find the specific article containing our tweet ID
+                    for article in articles:
+                        try:
+                            timestamp = article.find_element(By.CSS_SELECTOR, "time").find_element(By.XPATH, "./..")
+                            url = timestamp.get_attribute("href")
+                            if tweet_data['tweet_id'] in url:
+                                target_article = article
+                                break
+                        except:
+                            continue
+                    
+                    if not target_article:
+                        raise Exception("Could not find target tweet")
+                    
+                    # Find and click reply button within this specific article
+                    reply_button = target_article.find_element(
+                        By.CSS_SELECTOR, 
+                        "[data-testid='reply']"
                     )
-                    editor_wrapper.click()
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", reply_button)
+                    time.sleep(1)
+                    self.driver.execute_script("arguments[0].click();", reply_button)
+                    time.sleep(2)
+                    
+                    # Try multiple selectors for the reply box
+                    selectors = [
+                        "div[data-testid='tweetTextarea_0']",
+                        "div[aria-label='Post text']",
+                        "div.public-DraftStyleDefault-block.public-DraftStyleDefault-ltr"
+                    ]
+                    
+                    editor = None
+                    for selector in selectors:
+                        try:
+                            editor = self.driver.find_element(By.CSS_SELECTOR, selector)
+                            if editor:
+                                break
+                        except:
+                            continue
+                    
+                    if not editor:
+                        raise Exception("Could not find reply text box")
+                    
+                    self.driver.execute_script("arguments[0].click();", editor)
                     time.sleep(1)
                     
-                    # Clear text and enter content
-                    editor_wrapper.send_keys('\ue009' + 'a')  # Ctrl+A
-                    editor_wrapper.send_keys('\ue003')  # Backspace
-                    time.sleep(0.5)
-                    editor_wrapper.send_keys(content)
+                    # Clear any existing text
+                    editor.send_keys('\ue009' + 'a')  # Ctrl+A
+                    editor.send_keys('\ue003')  # Backspace
                     time.sleep(1)
                     
+                    # Enter sanitized reply content
+                    editor.send_keys(sanitized_content)
+                    time.sleep(1)
+                    
+                    # Click reply button
                     post_button = self.driver.find_element(By.CSS_SELECTOR, "[data-testid='tweetButton']")
                     self.driver.execute_script("arguments[0].click();", post_button)
-                    time.sleep(2)
-                except Exception as backup_error:
-                    print(f"Backup method also failed: {backup_error}")
-                    raise
+                    time.sleep(3)
+                    
+                    success = True
+                    print(f"Successfully replied to tweet {tweet_data['tweet_id']}")
+                    break
+                    
+                except Exception as e:
+                    print(f"Attempt {attempt + 1} failed: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(2)
+                        # Refresh mentions page for next attempt
+                        self.driver.get("https://twitter.com/notifications/mentions")
+                        time.sleep(3)
+                    continue
             
+            if success:
+                # Only save to processed tweets if reply was successful
+                self.processed_tweets.add(tweet_data['tweet_id'])
+                self.save_processed_tweets()
+                
         except Exception as e:
             print(f"Error replying to tweet: {e}")
-            # Try to return to notifications page
+        finally:
+            # Always return to mentions page
+            print("Returning to mentions page...")
             self.driver.get("https://twitter.com/notifications/mentions")
-            time.sleep(2)
+            time.sleep(3)
 
     def fetch_tweets(self, username: str, count: int = 10) -> List[str]:
         self.driver.get(f"https://twitter.com/{username}")
@@ -243,9 +275,6 @@ class TweetManager:
     def check_notifications(self) -> List[dict]:
         """Check notifications for mentions and collect tweets to reply to"""
         try:
-            # Removed the clearing of processed tweets
-            # We want to maintain the history of processed tweets
-            
             # Go to notifications page
             self.driver.get("https://twitter.com/notifications/mentions")
             time.sleep(5)
@@ -254,47 +283,73 @@ class TweetManager:
             print(f"Checking mentions for @{username}")
             
             notifications = []
+            processed_count = 0
+            max_scroll_attempts = 5
+            scroll_attempt = 0
             
-            # Find all articles
-            articles = self.driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
-            print(f"Found {len(articles)} articles")
-            
-            for position, article in enumerate(articles, 1):
-                try:
-                    # Get tweet URL and ID
-                    timestamp = article.find_element(By.CSS_SELECTOR, "time").find_element(By.XPATH, "./..")
-                    url = timestamp.get_attribute("href")
-                    tweet_id = url.split("/status/")[1]
-                    
-                    # Skip if we've already processed this tweet
-                    if tweet_id in self.processed_tweets:
-                        print(f"Skipping already processed tweet {tweet_id}")
+            while scroll_attempt < max_scroll_attempts:
+                articles = self.driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+                print(f"Found {len(articles)} total articles, processed {processed_count} so far")
+                
+                if processed_count >= len(articles):
+                    print("No new articles found after scrolling")
+                    break
+                
+                for article in articles[processed_count:]:
+                    try:
+                        # Get the actual mention tweet's URL (not the original tweet)
+                        tweet_url = None
+                        tweet_id = None
+                        
+                        # First try to get the direct URL of this tweet
+                        try:
+                            timestamp = article.find_element(By.CSS_SELECTOR, "time").find_element(By.XPATH, "./..")
+                            tweet_url = timestamp.get_attribute("href")
+                            tweet_id = tweet_url.split("/status/")[1]
+                            print(f"Found mention tweet ID: {tweet_id}")
+                        except Exception as e:
+                            print(f"Error getting tweet URL: {e}")
+                            continue
+                        
+                        # Skip if already processed
+                        if tweet_id in self.processed_tweets:
+                            print(f"Skipping already processed tweet {tweet_id}")
+                            continue
+                        
+                        # Get tweet text and verify it's a mention
+                        try:
+                            tweet_text = article.find_element(By.CSS_SELECTOR, "div[data-testid='tweetText']").text
+                            print(f"Processing tweet {tweet_id}: {tweet_text[:50]}...")
+                            
+                            if f"@{username}" in tweet_text.lower():
+                                notifications.append({
+                                    "text": tweet_text,
+                                    "tweet_id": tweet_id,
+                                    "url": tweet_url,
+                                    "is_mention": True
+                                })
+                                print(f"Added new mention: {tweet_id}")
+                        except Exception as e:
+                            print(f"Error getting tweet text: {e}")
+                            continue
+                        
+                    except Exception as e:
+                        print(f"Error processing article: {e}")
                         continue
-                    
-                    # Get tweet text
-                    tweet_text = article.find_element(By.CSS_SELECTOR, "div[data-testid='tweetText']").text
-                    print(f"Processing tweet {tweet_id} at position {position}: {tweet_text[:50]}...")
-                    
-                    # Check if this is a mention
-                    if f"@{username}" in tweet_text.lower():
-                        notifications.append({
-                            "text": tweet_text,
-                            "tweet_id": tweet_id,
-                            "url": url,
-                            "element": article  # Store the article element
-                        })
-                        print(f"Added mention from position {position}")
                 
-                except Exception as e:
-                    print(f"Error processing article at position {position}: {e}")
-                    continue
+                processed_count = len(articles)
                 
-                # Scroll to make next items visible
-                try:
-                    self.driver.execute_script("arguments[0].scrollIntoView(true);", article)
-                    time.sleep(0.5)
-                except:
-                    pass
+                if articles:
+                    try:
+                        last_article = articles[-1]
+                        self.driver.execute_script("arguments[0].scrollIntoView(true);", last_article)
+                        time.sleep(2)
+                        scroll_attempt += 1
+                    except Exception as e:
+                        print(f"Error scrolling: {e}")
+                        break
+                else:
+                    break
 
             print(f"Found {len(notifications)} new mentions to process")
             return notifications
