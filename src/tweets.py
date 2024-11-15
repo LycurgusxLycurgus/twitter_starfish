@@ -146,8 +146,24 @@ class TweetManager:
             print(f"Error in send_tweet: {e}")
             raise  # Re-raise the exception to be handled by the main loop
 
+    def clean_content(self, content: str) -> str:
+        """Clean tweet content of metadata and partial content"""
+        # Remove editing notes in parentheses
+        content = content.split("**(")[0].strip()
+        
+        # If there are multiple attempts at content (indicated by the same starting words)
+        # take only the first complete one
+        lines = content.split('\n')
+        if len(lines) > 1:
+            return lines[0].strip()
+        
+        return content.strip()
+
     def sanitize_text(self, text: str) -> str:
         """Sanitize text to only include BMP characters"""
+        # First clean the content
+        text = self.clean_content(text)
+        # Then remove non-BMP characters
         return ''.join(char for char in text if ord(char) < 0xFFFF)
 
     def reply_to_tweet(self, tweet_data: dict, content: str) -> None:
@@ -156,9 +172,9 @@ class TweetManager:
         success = False
         
         try:
-            # Sanitize the content before using it
-            sanitized_content = self.sanitize_text(content)
-            print(f"Sanitized content: {sanitized_content}")
+            # Clean and sanitize the content once at the beginning
+            content = self.sanitize_text(content)
+            print(f"Replying with content: {content}")
             
             for attempt in range(max_retries):
                 try:
@@ -218,7 +234,7 @@ class TweetManager:
                     time.sleep(1)
                     
                     # Enter sanitized reply content
-                    editor.send_keys(sanitized_content)
+                    editor.send_keys(content)
                     time.sleep(1)
                     
                     # Click reply button

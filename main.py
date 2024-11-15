@@ -69,10 +69,12 @@ def main():
                     tweet_content = generator.generate_tweet(topic)
                     
                     if tweet_content:
-                        scraper.send_tweet(tweet_content)
+                        # Sanitize the tweet before sending
+                        sanitized_tweet = scraper.tweets.sanitize_text(tweet_content)
+                        scraper.send_tweet(sanitized_tweet)
                         print(f"Sent tweet about '{topic}'")
                         print(f"Using format: '{chosen_format}'")
-                        print(f"Content: {tweet_content}")
+                        print(f"Content: {sanitized_tweet}")
                         
                         last_tweet_time = current_time
                         tweet_interval = random.randint(300, 1800)  # New random interval
