@@ -172,12 +172,17 @@ class TweetManager:
         success = False
         
         try:
-            # Clean and sanitize the content once at the beginning
+            # Clean and sanitize the content
             content = self.sanitize_text(content)
             print(f"Replying with content: {content}")
             
             for attempt in range(max_retries):
                 try:
+                    # Return to notifications page for fresh elements
+                    if attempt > 0:
+                        self.driver.get("https://twitter.com/notifications")
+                        time.sleep(3)
+                    
                     # Find all articles again to get fresh elements
                     articles = self.driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
                     target_article = None
@@ -250,22 +255,19 @@ class TweetManager:
                     print(f"Attempt {attempt + 1} failed: {e}")
                     if attempt < max_retries - 1:
                         time.sleep(2)
-                        # Refresh mentions page for next attempt
-                        self.driver.get("https://twitter.com/notifications/mentions")
-                        time.sleep(3)
-                    continue
-            
+                        continue
+                    raise
+                
             if success:
-                # Only save to processed tweets if reply was successful
                 self.processed_tweets.add(tweet_data['tweet_id'])
                 self.save_processed_tweets()
                 
         except Exception as e:
             print(f"Error replying to tweet: {e}")
         finally:
-            # Always return to mentions page
-            print("Returning to mentions page...")
-            self.driver.get("https://twitter.com/notifications/mentions")
+            # Return to notifications page
+            print("Returning to notifications page...")
+            self.driver.get("https://twitter.com/notifications")
             time.sleep(3)
 
     def fetch_tweets(self, username: str, count: int = 10) -> List[str]:
@@ -291,12 +293,12 @@ class TweetManager:
     def check_notifications(self) -> List[dict]:
         """Check notifications for mentions and collect tweets to reply to"""
         try:
-            # Go to notifications page
-            self.driver.get("https://twitter.com/notifications/mentions")
+            # Go to main notifications page instead of mentions
+            self.driver.get("https://twitter.com/notifications")
             time.sleep(5)
             
             username = os.getenv("TWITTER_USERNAME", "agent47ai").lower()
-            print(f"Checking mentions for @{username}")
+            print(f"Checking notifications for @{username}")
             
             notifications = []
             processed_count = 0
@@ -313,48 +315,38 @@ class TweetManager:
                 
                 for article in articles[processed_count:]:
                     try:
-                        # Get the actual mention tweet's URL (not the original tweet)
-                        tweet_url = None
-                        tweet_id = None
-                        
-                        # First try to get the direct URL of this tweet
-                        try:
-                            timestamp = article.find_element(By.CSS_SELECTOR, "time").find_element(By.XPATH, "./..")
-                            tweet_url = timestamp.get_attribute("href")
-                            tweet_id = tweet_url.split("/status/")[1]
-                            print(f"Found mention tweet ID: {tweet_id}")
-                        except Exception as e:
-                            print(f"Error getting tweet URL: {e}")
-                            continue
+                        # Get tweet URL and ID
+                        timestamp = article.find_element(By.CSS_SELECTOR, "time").find_element(By.XPATH, "./..")
+                        url = timestamp.get_attribute("href")
+                        tweet_id = url.split("/status/")[1]
+                        print(f"Found tweet ID: {tweet_id}")
                         
                         # Skip if already processed
                         if tweet_id in self.processed_tweets:
                             print(f"Skipping already processed tweet {tweet_id}")
                             continue
                         
-                        # Get tweet text and verify it's a mention
-                        try:
-                            tweet_text = article.find_element(By.CSS_SELECTOR, "div[data-testid='tweetText']").text
-                            print(f"Processing tweet {tweet_id}: {tweet_text[:50]}...")
-                            
-                            if f"@{username}" in tweet_text.lower():
-                                notifications.append({
-                                    "text": tweet_text,
-                                    "tweet_id": tweet_id,
-                                    "url": tweet_url,
-                                    "is_mention": True
-                                })
-                                print(f"Added new mention: {tweet_id}")
-                        except Exception as e:
-                            print(f"Error getting tweet text: {e}")
-                            continue
+                        # Get tweet text
+                        tweet_text = article.find_element(By.CSS_SELECTOR, "div[data-testid='tweetText']").text
+                        print(f"Processing tweet {tweet_id}: {tweet_text[:50]}...")
                         
+                        # Check if this is a mention
+                        if f"@{username}" in tweet_text.lower():
+                            notifications.append({
+                                "text": tweet_text,
+                                "tweet_id": tweet_id,
+                                "url": url,
+                                "element": article  # Store the article element
+                            })
+                            print(f"Added mention from position {processed_count + 1}")
+                    
                     except Exception as e:
                         print(f"Error processing article: {e}")
                         continue
                 
                 processed_count = len(articles)
                 
+                # Scroll to make next items visible
                 if articles:
                     try:
                         last_article = articles[-1]
