@@ -21,8 +21,8 @@ def main():
         print("Logged in successfully.")
         
         last_tweet_time = 0
-        tweet_interval = random.randint(300, 1800)  # Random interval between 30-60 minutes
-        notification_interval = 60  # 5 minutes
+        tweet_interval = random.randint(1800, 5500)  # Random interval between 30-60 minutes
+        notification_interval = 300  # 5 minutes
         last_notification_check = 0
         
         while True:

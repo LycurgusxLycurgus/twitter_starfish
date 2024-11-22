@@ -167,7 +167,7 @@ class TweetManager:
         return ''.join(char for char in text if ord(char) < 0xFFFF)
 
     def reply_to_tweet(self, tweet_data: dict, content: str) -> None:
-        """Reply to a tweet directly from notifications"""
+        """Reply to a tweet directly from notifications or search"""
         max_retries = 3
         success = False
         
@@ -178,10 +178,12 @@ class TweetManager:
             
             for attempt in range(max_retries):
                 try:
-                    # Return to notifications page for fresh elements
-                    if attempt > 0:
+                    # Return to appropriate page for fresh elements
+                    if tweet_data.get('is_fwog'):
+                        self.driver.get("https://x.com/search?q=%24fwog&src=typeahead_click")
+                    else:
                         self.driver.get("https://twitter.com/notifications")
-                        time.sleep(3)
+                    time.sleep(3)
                     
                     # Find all articles again to get fresh elements
                     articles = self.driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
@@ -201,35 +203,15 @@ class TweetManager:
                     if not target_article:
                         raise Exception("Could not find target tweet")
                     
-                    # Find and click reply button within this specific article
-                    reply_button = target_article.find_element(
-                        By.CSS_SELECTOR, 
-                        "[data-testid='reply']"
-                    )
+                    # Rest of the reply logic remains the same...
+                    reply_button = target_article.find_element(By.CSS_SELECTOR, "[data-testid='reply']")
                     self.driver.execute_script("arguments[0].scrollIntoView(true);", reply_button)
                     time.sleep(1)
                     self.driver.execute_script("arguments[0].click();", reply_button)
                     time.sleep(2)
                     
-                    # Try multiple selectors for the reply box
-                    selectors = [
-                        "div[data-testid='tweetTextarea_0']",
-                        "div[aria-label='Post text']",
-                        "div.public-DraftStyleDefault-block.public-DraftStyleDefault-ltr"
-                    ]
-                    
-                    editor = None
-                    for selector in selectors:
-                        try:
-                            editor = self.driver.find_element(By.CSS_SELECTOR, selector)
-                            if editor:
-                                break
-                        except:
-                            continue
-                    
-                    if not editor:
-                        raise Exception("Could not find reply text box")
-                    
+                    # Find and interact with reply box
+                    editor = self.driver.find_element(By.CSS_SELECTOR, "div[data-testid='tweetTextarea_0']")
                     self.driver.execute_script("arguments[0].click();", editor)
                     time.sleep(1)
                     
@@ -238,7 +220,7 @@ class TweetManager:
                     editor.send_keys('\ue003')  # Backspace
                     time.sleep(1)
                     
-                    # Enter sanitized reply content
+                    # Enter reply content
                     editor.send_keys(content)
                     time.sleep(1)
                     
@@ -248,7 +230,6 @@ class TweetManager:
                     time.sleep(3)
                     
                     success = True
-                    print(f"Successfully replied to tweet {tweet_data['tweet_id']}")
                     break
                     
                 except Exception as e:
@@ -265,9 +246,11 @@ class TweetManager:
         except Exception as e:
             print(f"Error replying to tweet: {e}")
         finally:
-            # Return to notifications page
-            print("Returning to notifications page...")
-            self.driver.get("https://twitter.com/notifications")
+            # Return to appropriate page
+            if tweet_data.get('is_fwog'):
+                self.driver.get("https://x.com/search?q=%24fwog&src=typeahead_click")
+            else:
+                self.driver.get("https://twitter.com/notifications")
             time.sleep(3)
 
     def fetch_tweets(self, username: str, count: int = 10) -> List[str]:
@@ -367,8 +350,10 @@ class TweetManager:
             return []
 
     def check_and_process_mentions(self, generator) -> None:
-        """Check and process mentions without navigation"""
+        """Check and process both mentions and $fwog tweets"""
         try:
+            # First process notifications (existing functionality)
+            print("\n=== Checking Notifications ===")
             notifications = self.check_notifications()
             
             if notifications:
@@ -389,6 +374,194 @@ class TweetManager:
                         continue
             else:
                 print("No new mentions to process")
+            
+            # Then process $fwog tweets
+            print("\n=== Checking $fwog Tweets ===")
+            fwog_tweets = self.check_fwog_tweets()
+            
+            if fwog_tweets:
+                print(f"Processing {len(fwog_tweets)} $fwog tweets...")
+                for tweet in fwog_tweets:
+                    try:
+                        reply_content = generator.generate_tweet(f"reply to $fwog tweet: {tweet['text']}")
+                        
+                        if reply_content:
+                            self.reply_to_tweet(tweet, reply_content)
+                            self.processed_tweets.add(tweet['tweet_id'])
+                            self.save_processed_tweets()
+                            print(f"Replied to $fwog tweet ID: {tweet['tweet_id']}")
+                            time.sleep(2)
+                            
+                    except Exception as e:
+                        print(f"Error processing $fwog tweet: {e}")
+                        continue
+            else:
+                print("No new $fwog tweets to process")
+            
+            # Return to home page
+            print("\nReturning to home page...")
+            self.driver.get("https://twitter.com/home")
+            time.sleep(3)
                 
         except Exception as e:
             print(f"Error in check_and_process_mentions: {e}")
+            self.driver.get("https://twitter.com/home")
+            time.sleep(3)
+
+    def check_fwog_tweets(self) -> List[dict]:
+        """Check tweets containing $fwog and collect them for replies"""
+        try:
+            # Go to $fwog search page with correct URL
+            search_url = "https://x.com/search?q=%24fwog&src=typeahead_click"
+            print(f"\nNavigating to $fwog search: {search_url}")
+            self.driver.get(search_url)
+            time.sleep(5)  # Wait for search page to load
+            
+            print("Checking $fwog tweets...")
+            
+            fwog_tweets = []
+            processed_count = 0
+            max_scroll_attempts = 15  # Increased from 5 to 15
+            scroll_attempt = 0
+            last_height = 0
+            
+            while scroll_attempt < max_scroll_attempts:
+                # Get current scroll height
+                current_height = self.driver.execute_script("return document.documentElement.scrollHeight")
+                
+                articles = self.driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+                print(f"Found {len(articles)} total $fwog tweets, processed {processed_count} so far")
+                
+                if processed_count >= len(articles) and current_height == last_height:
+                    print("No new $fwog tweets found after scrolling")
+                    break
+                
+                for article in articles[processed_count:]:
+                    try:
+                        # Get tweet URL and ID
+                        timestamp = article.find_element(By.CSS_SELECTOR, "time").find_element(By.XPATH, "./..")
+                        url = timestamp.get_attribute("href")
+                        tweet_id = url.split("/status/")[1]
+                        print(f"Found $fwog tweet ID: {tweet_id}")
+                        
+                        # Skip if already processed
+                        if tweet_id in self.processed_tweets:
+                            print(f"Skipping already processed $fwog tweet {tweet_id}")
+                            continue
+                        
+                        # Get tweet text
+                        tweet_text = article.find_element(By.CSS_SELECTOR, "div[data-testid='tweetText']").text
+                        print(f"Processing $fwog tweet {tweet_id}: {tweet_text[:50]}...")
+                        
+                        # Find reply button to verify we can interact with it
+                        reply_button = article.find_element(By.CSS_SELECTOR, "[data-testid='reply']")
+                        
+                        # Only add tweets that actually contain $fwog and have a reply button
+                        if "$fwog" in tweet_text.lower() and reply_button:
+                            fwog_tweets.append({
+                                "text": tweet_text,
+                                "tweet_id": tweet_id,
+                                "url": url,
+                                "element": article,
+                                "is_fwog": True  # Mark as fwog tweet
+                            })
+                            print(f"Added $fwog tweet from position {processed_count + 1}")
+                        else:
+                            print(f"Skipping tweet {tweet_id} - does not contain $fwog or no reply button")
+                    
+                    except Exception as e:
+                        print(f"Error processing $fwog tweet: {e}")
+                        continue
+                
+                processed_count = len(articles)
+                
+                # Scroll to make next items visible
+                if articles:
+                    try:
+                        # Scroll to bottom
+                        self.driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
+                        time.sleep(3)  # Increased wait time after scroll
+                        
+                        # Wait for new content
+                        for _ in range(10):  # Check multiple times for new content
+                            new_height = self.driver.execute_script("return document.documentElement.scrollHeight")
+                            if new_height != current_height:
+                                break
+                            time.sleep(0.5)
+                        
+                        last_height = current_height
+                        scroll_attempt += 1
+                        
+                    except Exception as e:
+                        print(f"Error scrolling $fwog tweets: {e}")
+                        break
+                else:
+                    break
+
+            print(f"Found {len(fwog_tweets)} new $fwog tweets to process")
+            return fwog_tweets
+
+        except Exception as e:
+            print(f"Error checking $fwog tweets: {e}")
+            return []
+
+    def process_notifications(self, generator) -> None:
+        try:
+            while True:  # Continuous monitoring loop
+                # First check notifications (existing functionality)
+                print("\n=== Checking Notifications ===")
+                notifications = self.check_notifications()
+                
+                if notifications:
+                    print(f"Processing {len(notifications)} notifications...")
+                    for notification in notifications:
+                        try:
+                            reply_content = generator.generate_tweet(f"reply to: {notification['text']}")
+                            
+                            if reply_content:
+                                self.reply_to_tweet(notification, reply_content)
+                                self.processed_tweets.add(notification['tweet_id'])
+                                self.save_processed_tweets()
+                                print(f"Replied to notification ID: {notification['tweet_id']}")
+                                time.sleep(2)
+                                
+                        except Exception as e:
+                            print(f"Error processing notification: {e}")
+                            continue
+                else:
+                    print("No new notifications to process")
+                
+                # Then check $fwog tweets
+                print("\n=== Checking $fwog Tweets ===")
+                fwog_tweets = self.check_fwog_tweets()
+                
+                if fwog_tweets:
+                    print(f"Processing {len(fwog_tweets)} $fwog tweets...")
+                    for tweet in fwog_tweets:
+                        try:
+                            reply_content = generator.generate_tweet(f"reply to $fwog tweet: {tweet['text']}")
+                            
+                            if reply_content:
+                                self.reply_to_tweet(tweet, reply_content)
+                                self.processed_tweets.add(tweet['tweet_id'])
+                                self.save_processed_tweets()
+                                print(f"Replied to $fwog tweet ID: {tweet['tweet_id']}")
+                                time.sleep(2)
+                                
+                        except Exception as e:
+                            print(f"Error processing $fwog tweet: {e}")
+                            continue
+                else:
+                    print("No new $fwog tweets to process")
+                
+                # Return to home page and wait before next check
+                print("\nReturning to home page...")
+                self.driver.get("https://twitter.com/home")
+                time.sleep(3)
+                print("Waiting 1 minute before next check...")
+                time.sleep(60)  # 1 minute interval
+                
+        except Exception as e:
+            print(f"Error in process_notifications: {e}")
+            self.driver.get("https://twitter.com/home")
+            time.sleep(3)
